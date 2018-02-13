@@ -217,19 +217,19 @@ def indel2float(args):
 
         convert_indel_to_float(infile, outfile)
 
-def make_decision_tree(infile, outfile, max_depth=None):
+def make_decision_tree(infile, outfile, max_features=None, max_depth=None):
 
-    df = pd.DataFrame.from_csv(infile, index_col=False, header=None)
+    df = pd.read_csv(infile, index_col=False, header=None, low_memory=False)
     df_transpose = df.transpose()
 
     x_train = df_transpose.values[3:,1:]
     y_train = df_transpose.values[3:,0]
 
-    clf = tree.DecisionTreeClassifier(max_depth=max_depth)
+    clf = tree.DecisionTreeClassifier(max_features=max_features, max_depth=max_depth)
     clf = clf.fit(x_train, y_train)
 
     dot_data = tree.export_graphviz(clf, feature_names=df_transpose.values[1,1:], class_names=y_train, out_file=None) 
-    graph = graphviz.Source(dot_data, format='png')
+    graph = graphviz.Source(dot_data)
     graph.render(outfile)
 
 def decisiontree(args):
@@ -242,6 +242,7 @@ def decisiontree(args):
 
     # init variables
     infolder = args.indel
+    max_features = args.features
     max_depth = args.depth
     outfolder = args.out
 
@@ -256,7 +257,7 @@ def decisiontree(args):
         fname = os.path.basename(f)
         outfile = outfolder + fname
 
-        make_decision_tree(infile, outfile, max_depth)
+        make_decision_tree(infile, outfile, max_features, max_depth)
 
 # create parser
 p = ArgumentParser(prog='sditools', description='Tools for .sdi files processing')
@@ -296,6 +297,7 @@ p_float.set_defaults(func=indel2float)
 p_dectree = subp.add_parser('decisiontree', help='Make the decision tree')
 p_dectree.add_argument('-indel', metavar='<String>', help='Path of the indel table folder',
                required=True)
+p_dectree.add_argument('-features', metavar='<String>', help='Maximum features of the tree', default=None, type=int)
 p_dectree.add_argument('-depth', metavar='<String>', help='Maximum depth of the tree', default=None, type=int)
 p_dectree.add_argument('-out', metavar='<String>', help='Output folder name', 
                required=True)
