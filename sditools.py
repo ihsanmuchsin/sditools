@@ -9,7 +9,7 @@ import os
 import gzip
 
 # define the function
-def sdi2csv(args):
+def sdi2indel(args):
 
     if not args.sdi[-1] == '/':
         args.sdi = args.sdi + '/'
@@ -145,17 +145,80 @@ def cleantable(args):
         fname = os.path.basename(f)
         outfile = outfolder + fname
 
-        clean_indel_file(infile, outfile, min_length, acc_letters)
+        clean_indel_table(infile, outfile, min_length, acc_letters)
 
 def convert_indel_to_float(infile, outfile):
-    pass
+
+    fout = open(outfile, 'w')
+    fin = open(infile, 'r')
+
+    line_count = 0
+
+    while True:
+
+        line_count += 1
+
+        line = fin.readline()
+
+        if line_count==1:
+            print (line.strip(), file=fout)
+            continue
+
+        if not line:
+            break
+
+        line_elem = line.strip().split(',')
+
+        variation = dict()
+        temp_val = 0
+        for i in range (2, len(line_elem)):
+            if line_elem[i] not in variation.keys():
+                variation[line_elem[i]]=temp_val
+                temp_val += 1
+
+        line_float = []
+        for elem in line_elem:
+            if elem in variation.keys():
+                line_float.append(str(variation[elem]))
+            else:
+                line_float.append(elem)
+
+        print (','.join(line_float), file=fout)
+
+    fin.close()
+    fout.close()
+
+def indel2float(args):
+
+    if not args.indel[-1] == '/':
+        args.indel = args.indel + '/'
+
+    if not args.out[-1] == '/':
+        args.out = args.out + '/'
+
+    # init variables
+    infolder = args.indel
+    outfolder = args.out
+
+    # create the outfolder
+    if not os.path.exists(outfolder):
+        os.makedirs(outfolder)
+
+    # run the function
+    for f in glob.glob(infolder+'*'):
+
+        infile = f
+        fname = os.path.basename(f)
+        outfile = outfolder + fname
+
+        convert_indel_to_float(infile, outfile)
 
 # create parser
 p = ArgumentParser(prog='sditools', description='Tools for .sdi files processing')
 
 subp = p.add_subparsers()
 
-p_csv = subp.add_parser('sdi2csv', help='Convert .sdi to an indel table stored as .csv file')
+p_csv = subp.add_parser('sdi2indel', help='Convert .sdi to an indel table stored as .csv file')
 p_csv.add_argument('-sdi', metavar='<String>', help='Path of the sdi folder',
                required=True)
 p_csv.add_argument('-ref', metavar='<String>', help='Name of the reference strain'+\
@@ -167,7 +230,7 @@ p_csv.add_argument('-chr', metavar='<String>', help='Provide the value of the '+
 p_csv.add_argument('-out', metavar='<string>', help='Output file name', 
                required=True)
 p_csv.add_argument('-gz', help='The input files are in gzip format', default=False, action='store_true')
-p_csv.set_defaults(func=sdi2csv)
+p_csv.set_defaults(func=sdi2indel)
 
 p_clean = subp.add_parser('cleantable', help='Clean indel tables')
 p_clean.add_argument('-indel', metavar='<String>', help='Path of the indel table folder',
@@ -178,16 +241,25 @@ p_clean.add_argument('-out', metavar='<String>', help='Output folder name',
                required=True)
 p_clean.set_defaults(func=cleantable)
 
+p_float = subp.add_parser('indel2float', help='Convert values in indel table to float')
+p_float.add_argument('-indel', metavar='<String>', help='Path of the indel table folder',
+               required=True)
+p_float.add_argument('-out', metavar='<String>', help='Output folder name', 
+               required=True)
+p_float.set_defaults(func=indel2float)
+
 
 if len(argv) == 1:
     p.print_help()
     exit(0)
 
 if len(argv) == 2:
-    if argv[1] == 'sdi2csv':
+    if argv[1] == 'sdi2indel':
         p_csv.print_help()
     elif argv[1] == 'cleantable':
         p_clean.print_help()
+    elif argv[1] == 'indel2float':
+        p_float.print_help()
     exit(0)
 
 args = p.parse_args()
