@@ -8,6 +8,10 @@ import glob
 import os
 import gzip
 
+import pandas as pd
+from sklearn import tree
+import graphviz
+
 # define the function
 def sdi2indel(args):
 
@@ -213,6 +217,47 @@ def indel2float(args):
 
         convert_indel_to_float(infile, outfile)
 
+def make_decision_tree(infile, outfile, max_depth=None):
+
+    df = pd.DataFrame.from_csv(infile, index_col=False, header=None)
+    df_transpose = df.transpose()
+
+    x_train = df_transpose.values[3:,1:]
+    y_train = df_transpose.values[3:,0]
+
+    clf = tree.DecisionTreeClassifier(max_depth=max_depth)
+    clf = clf.fit(x_train, y_train)
+
+    dot_data = tree.export_graphviz(clf, feature_names=df_transpose.values[1,1:], class_names=y_train, out_file=None) 
+    graph = graphviz.Source(dot_data, format='png')
+    graph.render(outfile)
+
+def decisiontree(args):
+
+    if not args.indel[-1] == '/':
+        args.indel = args.indel + '/'
+
+    if not args.out[-1] == '/':
+        args.out = args.out + '/'
+
+    # init variables
+    infolder = args.indel
+    max_depth = args.depth
+    outfolder = args.out
+
+    # create the outfolder
+    if not os.path.exists(outfolder):
+        os.makedirs(outfolder)
+
+    # run the function
+    for f in glob.glob(infolder+'*'):
+
+        infile = f
+        fname = os.path.basename(f)
+        outfile = outfolder + fname
+
+        make_decision_tree(infile, outfile, max_depth)
+
 # create parser
 p = ArgumentParser(prog='sditools', description='Tools for .sdi files processing')
 
@@ -248,6 +293,14 @@ p_float.add_argument('-out', metavar='<String>', help='Output folder name',
                required=True)
 p_float.set_defaults(func=indel2float)
 
+p_dectree = subp.add_parser('decisiontree', help='Make the decision tree')
+p_dectree.add_argument('-indel', metavar='<String>', help='Path of the indel table folder',
+               required=True)
+p_dectree.add_argument('-depth', metavar='<String>', help='Maximum depth of the tree', default=None, type=int)
+p_dectree.add_argument('-out', metavar='<String>', help='Output folder name', 
+               required=True)
+p_dectree.set_defaults(func=decisiontree)
+
 
 if len(argv) == 1:
     p.print_help()
@@ -260,6 +313,8 @@ if len(argv) == 2:
         p_clean.print_help()
     elif argv[1] == 'indel2float':
         p_float.print_help()
+    elif argv[1] == 'decisiontree':
+        p_dectree.print_help()
     exit(0)
 
 args = p.parse_args()
